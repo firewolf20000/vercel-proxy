@@ -1,28 +1,8 @@
 {
-  "version": 2,
-  "build": {
-    "framework": null,  
-    "env": {},
-    "ignore": ["node_modules", ".git"]
-  },
   "rewrites": [
-    
     { "source": "/proxy/:match*", "destination": "/api/proxy/:match*" },
-    
     { "source": "/httpproxy/:match*", "destination": "/api/httpproxy/:match*" },
-    
     { "source": "/chat", "destination": "/api/chat" },
     { "source": "/openai", "destination": "/api/openai" }
-  ],
-  "headers": [
-    
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, DELETE, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
-      ]
-    }
   ]
 }
