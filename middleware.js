@@ -1,42 +1,59 @@
 export const config = {
-  matcher: [
-    // 1. 匹配所有路径（根路径 + 所有子路径）
-    '/',
-    '/:path*',
-    // 2. 排除 /public 及其所有子路径（格式：!/ + 完整路径，且路径以 / 开头）
-    '!/public',
-    '!/public/:path*',
-    // 3. 排除 /api/proxy 及其所有子路径（同样确保路径以 / 开头）
-    '!/api/proxy',
-    '!/api/proxy/:path*'
-  ]
+  // 匹配所有路径（交给中间件内部判断是否排除）
+  matcher: '/:path*'
 };
 
 export default function middleware(req) {
-  // 1. 输出请求基础日志
-  console.log(`[Middleware] 收到请求 | URL: ${req.url} | 方法: ${req.method}`);
+  // 1. 提取请求路径
+  const pathname = new URL(req.url).pathname;
+  console.log(`[Middleware] 请求路径: ${pathname}`);
+
+  // 2. 定义需要排除的路径规则
+  const excludePaths = [
+    '/public',          // 排除 /public 精确路径
+    '/public/:path*',   // 排除 /public 下的所有子路径
+    '/api/proxy',       // 排除 /api/proxy 精确路径
+    '/api/proxy/:path*' // 排除 /api/proxy 下的所有子路径
+  ];
+
+  // 3. 检查请求路径是否需要排除
+  const isExcluded = excludePaths.some(pattern => {
+    // 处理精确路径（如 /public）
+    if (!pattern.includes(':path*')) {
+      return pathname === pattern;
+    }
+    // 处理子路径（如 /public/xxx）
+    const basePattern = pattern.replace(':path*', '');
+    return pathname.startsWith(basePattern);
+  });
+
+  if (isExcluded) {
+    console.log(`[Middleware] 路径 ${pathname} 被排除，直接放行`);
+    // 排除的路径：不做转发，让请求按 Vercel 原有逻辑处理（如访问静态资源）
+    return;
+  }
+
+  // 4. 非排除路径：执行转发逻辑
+  console.log(`[Middleware] 路径 ${pathname} 需转发，继续处理`);
+
+  // 提取 Referer 头
   const referer = req.headers.get('referer');
   console.log(`[Middleware] 请求头 Referer: ${referer || '未提供'}`);
 
-  // 2. 校验 Referer 是否存在
   if (!referer) {
-    console.error(`[Middleware] 错误 | Referer 缺失 | 请求 URL: ${req.url}`);
+    console.error(`[Middleware] 错误 | Referer 缺失 | 请求路径: ${pathname}`);
     return new Response('Referer header is required', { status: 400 });
   }
 
-  // 3. 解析 Referer 并构造新 URL（捕获解析错误）
   try {
     const refererUrl = new URL(referer);
     console.log(`[Middleware] 解析 Referer | 地址: ${refererUrl.href}`);
 
-    // 拼接新 URL：Referer 路径 + 原请求路径（如 /api/active_tasks）
     const newUrl = new URL(req.url);
     newUrl.host = refererUrl.host;
     newUrl.pathname = refererUrl.pathname + newUrl.pathname;
     console.log(`[Middleware] 构造新 URL | 目标: ${newUrl.href}`);
 
-    // 4. 307 重定向（保留原请求方法）
-    console.log(`[Middleware] 重定向 | ${req.url} → ${newUrl.href}`);
     return Response.redirect(newUrl.href, 307);
   } catch (err) {
     console.error(`[Middleware] 异常 | 解析失败 | 错误: ${err.message} | Referer: ${referer}`);
