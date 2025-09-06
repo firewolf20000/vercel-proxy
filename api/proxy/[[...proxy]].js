@@ -4,6 +4,7 @@ export default async (req, res) => {
     // 示例路径：/api/proxy/httpbin.org/get → 提取 "httpbin.org/get"
     return res.status(200).send(req.url);
     const targetPath = req.url.replace(/^\/api\/proxy\//, '');
+    return res.status(200).send(targetPath);
     if (!targetPath) {
       return res.status(400).send("Invalid target URL");
     }
