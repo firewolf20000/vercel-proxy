@@ -1,21 +1,21 @@
 {
   "version": 2,
   "build": {
-    "framework": null,  // 明确指定非静态框架项目，避免public目录检查
+    "framework": null,  
     "env": {},
     "ignore": ["node_modules", ".git"]
   },
   "rewrites": [
-    // 代理路由规则：将/proxy/*转发到/api/proxy/*
+    
     { "source": "/proxy/:match*", "destination": "/api/proxy/:match*" },
-    // HTTP代理路由规则：将/httpproxy/*转发到/api/httpproxy/*
+    
     { "source": "/httpproxy/:match*", "destination": "/api/httpproxy/:match*" },
-    // 其他API路由转发
+    
     { "source": "/chat", "destination": "/api/chat" },
     { "source": "/openai", "destination": "/api/openai" }
   ],
   "headers": [
-    // 全局CORS配置，允许所有来源访问
+    
     {
       "source": "/api/(.*)",
       "headers": [
