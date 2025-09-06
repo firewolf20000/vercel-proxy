@@ -1,13 +1,12 @@
 export const config = {
-  // 关键修正：否定规则必须完整写全路径（!/ + /public/... → 实际为 !/public/:path*，无多余符号）
   matcher: [
     // 1. 匹配所有路径（根路径 + 所有子路径）
     '/',
     '/:path*',
-    // 2. 排除 /public 及其所有子路径（格式：!/ + 完整路径）
+    // 2. 排除 /public 及其所有子路径（格式：!/ + 完整路径，且路径以 / 开头）
     '!/public',
     '!/public/:path*',
-    // 3. 排除 /api/proxy 及其所有子路径
+    // 3. 排除 /api/proxy 及其所有子路径（同样确保路径以 / 开头）
     '!/api/proxy',
     '!/api/proxy/:path*'
   ]
