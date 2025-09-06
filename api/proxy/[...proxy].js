@@ -2,14 +2,16 @@ export default async (req, res) => {
   try {
     // 1. 提取目标 URL（从请求路径中获取）
     // 示例路径：/api/proxy/httpbin.org/get → 提取 "httpbin.org/get"
-    return res.status(200).send(req.url);
+    console.log("请求方法:", req.method);
+    console.log("请求URL:", req.url);
+    console.log("请求头:", req.headers);
     const targetPath = req.url.replace(/^\/api\/proxy\//, '');
-    return res.status(200).send(targetPath);
+    console.log("targetpath:",targetPath);
     if (!targetPath) {
       return res.status(400).send("Invalid target URL");
     }
     const targetUrl = `https://${targetPath}`; // 拼接完整目标 URL
-
+    console.log("targetpath:",targetUrl);
     // 2. 转发请求（包含请求方法、头、体）
     const response = await fetch(targetUrl, {
       method: req.method,
