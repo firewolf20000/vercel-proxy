@@ -51,7 +51,11 @@ export default function middleware(req) {
 
     const newUrl = new URL(req.url);
     newUrl.host = refererUrl.host;
-    newUrl.pathname = refererUrl.pathname + newUrl.pathname;
+    
+    // 修正路径拼接逻辑：只使用原请求路径，不拼接referer的路径
+    // 避免多拼层级，解决404问题
+    newUrl.pathname = newUrl.pathname;
+    
     console.log(`[Middleware] 构造新 URL | 目标: ${newUrl.href}`);
 
     return Response.redirect(newUrl.href, 307);
