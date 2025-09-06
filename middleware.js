@@ -1,58 +1,60 @@
 export const config = {
-  matcher: '/:path*'
+  matcher: '/:path*' // 匹配所有路径
 };
 
 export default function middleware(req) {
-  const pathname = new URL(req.url).pathname;
-  console.log(`[Middleware] 请求路径: ${pathname}`);
+  // 1. 提取当前请求的路径（如 /market_scan）
+  const currentPath = new URL(req.url).pathname;
+  console.log(`[Middleware] 当前请求路径: ${currentPath}`);
 
+  // 2. 排除路径规则（不变）
   const excludePaths = [
     '/public',
     '/public/:path*',
     '/api/proxy',
     '/api/proxy/:path*'
   ];
-
   const isExcluded = excludePaths.some(pattern => {
-    if (!pattern.includes(':path*')) {
-      return pathname === pattern;
-    }
+    if (!pattern.includes(':path*')) return currentPath === pattern;
     const basePattern = pattern.replace(':path*', '');
-    return pathname.startsWith(basePattern);
+    return currentPath.startsWith(basePattern);
   });
-
   if (isExcluded) {
-    console.log(`[Middleware] 路径 ${pathname} 被排除，直接放行`);
+    console.log(`[Middleware] 路径 ${currentPath} 被排除，直接放行`);
     return;
   }
 
-  console.log(`[Middleware] 路径 ${pathname} 需转发，继续处理`);
+  // 3. 处理转发逻辑（核心修改：按 Referer 格式提取基础路径）
   const referer = req.headers.get('referer');
-  console.log(`[Middleware] 请求头 Referer: ${referer || '未提供'}`);
-
   if (!referer) {
-    console.error(`[Middleware] 错误 | Referer 缺失 | 请求路径: ${pathname}`);
+    console.error(`[Middleware] 错误 | Referer 缺失 | 请求路径: ${currentPath}`);
     return new Response('Referer header is required', { status: 400 });
   }
 
   try {
     const refererUrl = new URL(referer);
-    console.log(`[Middleware] 解析 Referer | 地址: ${refererUrl.href}`);
+    console.log(`[Middleware] 解析 Referer | 完整地址: ${refererUrl.href}`);
 
-    // 关键修正：从 Referer 路径中提取目标网站主机（fiewolf1000-stockany2.hf.space）
-    // Referer 路径格式：/api/proxy/[目标主机] → 提取 [目标主机] 部分
-    const refererPathParts = refererUrl.pathname.split('/');
-    const targetHost = refererPathParts[3]; // 索引3对应 "/api/proxy/[目标主机]" 中的目标主机
-    if (!targetHost) {
-      throw new Error(`无法从 Referer 提取目标主机，Referer 路径: ${refererUrl.pathname}`);
+    // 关键：提取 Referer 中 /api/proxy/ 后的“基础路径”（即 fiewolf1000-stockany2.hf.space）
+    // 无论 Referer 是 /api/proxy/xxx 还是 /api/proxy/xxx/yyy，都只取 xxx 作为基础
+    const proxyPrefix = '/api/proxy/';
+    const refererPath = refererUrl.pathname;
+    // 找到 /api/proxy/ 后的部分（如 "fiewolf1000-stockany2.hf.space" 或 "fiewolf1000-stockany2.hf.space/market_scan"）
+    const afterProxy = refererPath.slice(refererPath.indexOf(proxyPrefix) + proxyPrefix.length);
+    // 提取基础路径（去掉 afterProxy 中第一个 "/" 后的所有内容，即保留 xxx）
+    const baseTargetPath = afterProxy.split('/')[0]; // 结果：fiewolf1000-stockany2.hf.space
+
+    if (!baseTargetPath) {
+      throw new Error(`无法从 Referer 提取基础路径，Referer 路径: ${refererPath}`);
     }
 
+    // 构造最终目标 URL：/api/proxy/基础路径 + 当前请求路径（如 /market_scan）
     const newUrl = new URL(req.url);
-    newUrl.host = targetHost; // 赋值为目标网站主机（如 fiewolf1000-stockany2.hf.space）
-    newUrl.pathname = newUrl.pathname; // 保持原请求路径（如 /market_scan）
-    console.log(`[Middleware] 构造新 URL | 目标: ${newUrl.href}`); // 最终应为 https://fiewolf1000-stockany2.hf.space/market_scan
+    newUrl.pathname = `${proxyPrefix}${baseTargetPath}${currentPath}`;
+    // 保留代理域名（fxproxy.15115656.xyz），不修改 host
+    console.log(`[Middleware] 构造新 URL | 目标: ${newUrl.href}`);
 
-    return Response.redirect(newUrl.href, 307);
+    return Response.redirect(newUrl.toString(), 307); // 307 保留原请求方法
   } catch (err) {
     console.error(`[Middleware] 异常 | 解析失败 | 错误: ${err.message} | Referer: ${referer}`);
     return new Response('Invalid Referer URL', { status: 400 });
