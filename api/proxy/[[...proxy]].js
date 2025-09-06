@@ -1,12 +1,10 @@
 export default async (req, res) => {
   try {
     console.log('[Proxy] 开始处理请求，请求URL:', req.url);
-    // 1. 解析URL，强制分离路径和查询参数
     const url = new URL(req.url, `https://${req.headers.host}`);
-    const purePath = url.pathname; // 只取路径部分（不含查询参数）
+    const purePath = url.pathname;
     console.log('[Proxy] 纯净路径提取结果:', purePath);
 
-    // 2. 提取目标路径（仅保留路径部分）
     const targetPath = purePath.replace(/^\/api\/proxy\//, '');
     if (!targetPath) {
       console.error('[Proxy] 错误：无效的目标URL，路径提取为空');
@@ -14,11 +12,9 @@ export default async (req, res) => {
     }
     console.log('[Proxy] 目标路径截取后:', targetPath);
 
-    // 3. 拼接目标URL（不带多余查询参数）
     const targetUrl = `https://${targetPath}`;
     console.log('[Proxy] 最终转发URL拼接完成:', targetUrl);
 
-    // 4. 转发请求
     console.log('[Proxy] 正在向目标URL发起请求:', targetUrl);
     console.log('[Proxy] 请求方法:', req.method);
     console.log('[Proxy] 请求头信息（部分关键）:');
@@ -40,21 +36,23 @@ export default async (req, res) => {
       console.log(`  ${key}: ${value}`);
     });
     
-    const responseText = await response.text();
+    // 处理 gzip 压缩的响应
+    let responseText = await response.text();
+    // 移除可能干扰的 content-encoding 头（由 Vercel 自动处理解压）
+    const contentType = response.headers.get('Content-Type') || 'text/plain';
+    console.log('[Proxy] 响应内容类型:', contentType);
+
     console.log('[Proxy] 响应内容长度（近似）:', responseText.length, '字节');
 
-    // 5. 转发响应
     console.log('[Proxy] 开始向客户端转发响应');
     res.status(response.status);
-    response.headers.forEach((value, key) => {
-      res.setHeader(key, value);
-    });
-    res.send(responseText); // 修复语法错误：正确闭合括号并单独调用
-    console.log('[Proxy] 响应转发完成，客户端已接收'); // 修复日志格式
+    // 只转发必要的头，避免编码冲突
+    res.setHeader('Content-Type', contentType);
+    res.send(responseText);
+    console.log('[Proxy] 响应转发完成，客户端已接收');
 
   } catch (err) {
     console.error('[Proxy] 错误：', err);
     res.status(500).send("Proxy failed: " + err.message);
   }
 };
-    
