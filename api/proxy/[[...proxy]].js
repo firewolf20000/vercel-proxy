@@ -20,14 +20,33 @@ export default async (req, res) => {
     console.log('[Proxy] 请求头信息（部分关键）:');
     console.log(`  Host: ${new URL(targetUrl).host}`);
     console.log(`  User-Agent: ${req.headers['user-agent'] || '无'}`);
-    
+
+    // 自定义函数：获取请求体文本内容
+    async function getRequestBody(req) {
+      return new Promise((resolve, reject) => {
+        let body = '';
+        req.on('data', (chunk) => {
+          body += chunk.toString();
+        });
+        req.on('end', () => {
+          resolve(body);
+        });
+        req.on('error', (err) => {
+          reject(err);
+        });
+      });
+    }
+
+    // 获取请求体文本
+    const requestBody = req.body ? await getRequestBody(req) : undefined;
+
     const response = await fetch(targetUrl, {
       method: req.method,
       headers: {
         Host: new URL(targetUrl).host,
         'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
       },
-      body: req.body ? await req.text() : undefined,
+      body: requestBody, // 使用获取到的请求体文本
     });
 
     console.log('[Proxy] 目标网站响应状态码:', response.status);
@@ -35,7 +54,7 @@ export default async (req, res) => {
     response.headers.forEach((value, key) => {
       console.log(`  ${key}: ${value}`);
     });
-    
+
     // 处理 gzip 压缩的响应
     let responseText = await response.text();
     // 移除可能干扰的 content-encoding 头（由 Vercel 自动处理解压）
