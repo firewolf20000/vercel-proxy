@@ -1,29 +1,31 @@
 export default async (req, res) => {
   try {
-    // 1. 解析URL，强制分离路径和查询参数
     const url = new URL(req.url, `https://${req.headers.host}`);
-    const purePath = url.pathname; // 只取路径部分（不含查询参数）
-    console.log("纯净路径:", purePath); // 例如：/api/proxy/www.sohu.com
+    const purePath = url.pathname;
+    console.log("纯净路径:", purePath);
 
-    // 2. 提取目标路径（仅保留路径部分）
     const targetPath = purePath.replace(/^\/api\/proxy\//, '');
     if (!targetPath) {
       return res.status(400).send("Invalid target URL");
     }
-    console.log("提取的目标路径:", targetPath); // 例如：www.sohu.com
+    console.log("提取的目标路径:", targetPath);
 
-    // 3. 拼接目标URL（不带多余查询参数）
     const targetUrl = `https://${targetPath}`;
-    console.log("最终转发URL:", targetUrl); // 例如：https://www.sohu.com
+    console.log("最终转发URL:", targetUrl);
 
-    // 4. 转发请求
+    // 关键：覆盖 Host 头为目标网站的 Host
+    const modifiedHeaders = {
+      ...req.headers,
+      Host: new URL(targetUrl).host, // 提取 targetUrl 的 Host（如 www.baidu.com）
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36' // 模拟浏览器 User-Agent
+    };
+
     const response = await fetch(targetUrl, {
       method: req.method,
-      headers: req.headers,
+      headers: modifiedHeaders, // 使用修改后的请求头
       body: req.body ? await req.text() : undefined,
     });
 
-    // 5. 转发响应
     res.status(response.status);
     response.headers.forEach((value, key) => {
       res.setHeader(key, value);
