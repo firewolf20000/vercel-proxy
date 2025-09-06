@@ -1,4 +1,4 @@
 "scripts": {
   "build": "echo 'Build complete'",
-  "start": "node server.js" // 如果有本地启动服务的文件，可指定
+  "start": "node server.js"
 }
