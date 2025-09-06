@@ -1,42 +1,32 @@
 export const config = {
-  // 匹配所有路径（交给中间件内部判断是否排除）
   matcher: '/:path*'
 };
 
 export default function middleware(req) {
-  // 1. 提取请求路径
   const pathname = new URL(req.url).pathname;
   console.log(`[Middleware] 请求路径: ${pathname}`);
 
-  // 2. 定义需要排除的路径规则
   const excludePaths = [
-    '/public',          // 排除 /public 精确路径
-    '/public/:path*',   // 排除 /public 下的所有子路径
-    '/api/proxy',       // 排除 /api/proxy 精确路径
-    '/api/proxy/:path*' // 排除 /api/proxy 下的所有子路径
+    '/public',
+    '/public/:path*',
+    '/api/proxy',
+    '/api/proxy/:path*'
   ];
 
-  // 3. 检查请求路径是否需要排除
   const isExcluded = excludePaths.some(pattern => {
-    // 处理精确路径（如 /public）
     if (!pattern.includes(':path*')) {
       return pathname === pattern;
     }
-    // 处理子路径（如 /public/xxx）
     const basePattern = pattern.replace(':path*', '');
     return pathname.startsWith(basePattern);
   });
 
   if (isExcluded) {
     console.log(`[Middleware] 路径 ${pathname} 被排除，直接放行`);
-    // 排除的路径：不做转发，让请求按 Vercel 原有逻辑处理（如访问静态资源）
     return;
   }
 
-  // 4. 非排除路径：执行转发逻辑
   console.log(`[Middleware] 路径 ${pathname} 需转发，继续处理`);
-
-  // 提取 Referer 头
   const referer = req.headers.get('referer');
   console.log(`[Middleware] 请求头 Referer: ${referer || '未提供'}`);
 
@@ -49,14 +39,18 @@ export default function middleware(req) {
     const refererUrl = new URL(referer);
     console.log(`[Middleware] 解析 Referer | 地址: ${refererUrl.href}`);
 
+    // 关键修正：从 Referer 路径中提取目标网站主机（fiewolf1000-stockany2.hf.space）
+    // Referer 路径格式：/api/proxy/[目标主机] → 提取 [目标主机] 部分
+    const refererPathParts = refererUrl.pathname.split('/');
+    const targetHost = refererPathParts[3]; // 索引3对应 "/api/proxy/[目标主机]" 中的目标主机
+    if (!targetHost) {
+      throw new Error(`无法从 Referer 提取目标主机，Referer 路径: ${refererUrl.pathname}`);
+    }
+
     const newUrl = new URL(req.url);
-    newUrl.host = refererUrl.host;
-    
-    // 修正路径拼接逻辑：只使用原请求路径，不拼接referer的路径
-    // 避免多拼层级，解决404问题
-    newUrl.pathname = newUrl.pathname;
-    
-    console.log(`[Middleware] 构造新 URL | 目标: ${newUrl.href}`);
+    newUrl.host = targetHost; // 赋值为目标网站主机（如 fiewolf1000-stockany2.hf.space）
+    newUrl.pathname = newUrl.pathname; // 保持原请求路径（如 /market_scan）
+    console.log(`[Middleware] 构造新 URL | 目标: ${newUrl.href}`); // 最终应为 https://fiewolf1000-stockany2.hf.space/market_scan
 
     return Response.redirect(newUrl.href, 307);
   } catch (err) {
