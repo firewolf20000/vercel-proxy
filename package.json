@@ -1,8 +1,4 @@
-{
-  "name": "vercel-proxy",
-  "version": "1.0.0",
-  "type": "module",
-  "dependencies": {
-    "node-fetch": "^3.3.2"
-  }
+"scripts": {
+  "build": "echo 'Build complete'",
+  "start": "node server.js" // 如果有本地启动服务的文件，可指定
 }
