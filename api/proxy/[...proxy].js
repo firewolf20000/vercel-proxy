@@ -1,25 +1,29 @@
 export default async (req, res) => {
   try {
-    // 1. 提取目标 URL（从请求路径中获取）
-    // 示例路径：/api/proxy/httpbin.org/get → 提取 "httpbin.org/get"
-    console.log("请求方法:", req.method);
-    console.log("请求URL:", req.url);
-    console.log("请求头:", req.headers);
-    const targetPath = req.url.replace(/^\/api\/proxy\//, '');
-    console.log("targetpath:",targetPath);
+    // 1. 解析URL，强制分离路径和查询参数
+    const url = new URL(req.url, `https://${req.headers.host}`);
+    const purePath = url.pathname; // 只取路径部分（不含查询参数）
+    console.log("纯净路径:", purePath); // 例如：/api/proxy/www.sohu.com
+
+    // 2. 提取目标路径（仅保留路径部分）
+    const targetPath = purePath.replace(/^\/api\/proxy\//, '');
     if (!targetPath) {
       return res.status(400).send("Invalid target URL");
     }
-    const targetUrl = `https://${targetPath}`; // 拼接完整目标 URL
-    console.log("targetpath:",targetUrl);
-    // 2. 转发请求（包含请求方法、头、体）
+    console.log("提取的目标路径:", targetPath); // 例如：www.sohu.com
+
+    // 3. 拼接目标URL（不带多余查询参数）
+    const targetUrl = `https://${targetPath}`;
+    console.log("最终转发URL:", targetUrl); // 例如：https://www.sohu.com
+
+    // 4. 转发请求
     const response = await fetch(targetUrl, {
       method: req.method,
       headers: req.headers,
       body: req.body ? await req.text() : undefined,
     });
 
-    // 3. 转发响应（包含状态码、头、内容）
+    // 5. 转发响应
     res.status(response.status);
     response.headers.forEach((value, key) => {
       res.setHeader(key, value);
