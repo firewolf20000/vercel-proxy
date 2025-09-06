@@ -1,6 +1,6 @@
 {
   "rewrites": [
-    { "source": "/proxy/:match/:url*", "destination": "/api/proxy/:match/:url*" }
+    { "source": "/proxy/:match/:url*", "destination": "/api/proxy/:match/:url*" },
     { "source": "/httpproxy/:match*", "destination": "/api/httpproxy/:match*" },
     { "source": "/chat", "destination": "/api/chat" },
     { "source": "/openai", "destination": "/api/openai" }
